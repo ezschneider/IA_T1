@@ -1,3 +1,4 @@
+from random import random
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
@@ -7,7 +8,8 @@ from scipy import stats
 import pandas as pd
 import numpy as np
 
-table_result = pd.DataFrame(columns=['Método', 'Média', 'Desvio Padrão', 'Limite Inferior', 'Limite Superior'])
+table_result_measure = pd.DataFrame(columns=['Método', 'Média', 'Desvio Padrão', 'Limite Inferior', 'Limite Superior'])
+table_result_pvalue = pd.DataFrame(columns=[''])
 
 # Função para mostrar as medidas alvos
 def classification_report(scores):
@@ -17,15 +19,20 @@ def classification_report(scores):
     print(f'Intervalo de confiança (95%): [{inf:.2f},{sup:.2f}]')
 
 # Função para adicionar as medidas alvos na tabela de scores
-def add_result(met, df, scores):
+def add_result_measure(met, df, scores):
     inf, sup = stats.norm.interval(0.95, loc=scores.mean(), 
                                scale=scores.std()/np.sqrt(len(scores)))
     new_row = pd.DataFrame([[met, round(scores.mean(), 2), round(scores.std(), 2), round(inf, 2), round(sup, 2)]],
                             columns=['Método', 'Média', 'Desvio Padrão', 'Limite Inferior', 'Limite Superior'])
-
     df = pd.concat([df, new_row])
     return df
-    
+
+# Função para adicionar as medidas alvos na tabela de p-value
+def add_result_pvalue(met, df, scores):
+    new_row = pd.DataFrame([[met, round(scores.mean(), 2), round(scores.std(), 2), round(inf, 2), round(sup, 2)]],
+                            columns=['Método', 'Média', 'Desvio Padrão', 'Limite Inferior', 'Limite Superior'])
+    df = pd.concat([df, new_row])
+    return df
 
 # Importando a base de dados Iris
 from sklearn import datasets
@@ -48,9 +55,9 @@ pipeline_zR = Pipeline([('transformer', scalar), ('estimator', zR)])
 gNB = GaussianNB()
 pipeline_gNB = Pipeline([('transformer', scalar), ('estimator', gNB)])
 
-table_result = add_result('ZR', table_result, cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
+table_result_measure = add_result_measure('ZR', table_result_measure, cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
-table_result = add_result('NBG', table_result, cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
+table_result_measure = add_result_measure('NBG', table_result_measure, cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
 
 # Parte II
@@ -60,21 +67,20 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans
 from sklearn.utils.validation import check_X_y
 
+class KMCClassifier():
+    def __init__(self, k_param=1):
+        self.k_param = k_param
+        self.cent = []
 
-# class KMeansClassifier():
-#    def __init__(self, cx=None, cy=None):
-#        super().__init__()
-#        self.cx = cx
-#        self.cy = cy
+    def fit(self, X_train, y_train):
+        X_train, y_train = check_X_y(X_train, y_train)
+        for classes in range(np.unique(y_train)):
+            kmeans = KMeans(n_clusters=self.k_param)
+            kmeans.fit(X_train, y_train)
+            self.cent.append({kmeans.cluster_centers_, y_train})
 
-#    def fit(self,x_train,y_train):
-#        x_train,y_train = check_X_y(x_train,y_train)
-
-#        counter = KMeans()
-#        self.__self_pred = max(counter,key = counter.get)
-
-#    def predict(self,x_test):
-       
+    def predict(self,x_test):
+        
 
 # Definindo os hiperparametros
 parameters_KNN = {'estimator__n_neighbors':[1,3,5,7]}
@@ -95,9 +101,10 @@ p_AD = GridSearchCV(pipeline_AD, parameters_AD, scoring='accuracy', cv=4)
 
 #table_result = add_result('KMC', table_result, cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(p_KMC, data_X, data_y, scoring='accuracy', cv = rkf))
-table_result = add_result('KNN', table_result, cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf))
+table_result_measure = add_result_measure('KNN', table_result_measure, cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf))
-table_result = add_result('AD', table_result, cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
+table_result_measure = add_result_measure('AD', table_result_measure, cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 
-print(table_result)
+table_result_measure.reset_index(drop=True, inplace=True)
+print(table_result_measure)
