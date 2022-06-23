@@ -1,3 +1,4 @@
+from cmath import inf
 from random import random
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.model_selection import cross_val_score
@@ -39,10 +40,10 @@ def table_htest(list_scores):
             else:
                 if(col > row):
                     s,p = ttest_rel(list_scores[row],list_scores[col])
-                    print(round(p, 3), end = "\t")
+                    print(round(p, 6), end = "\t")
                 else:
                     s,p = wilcoxon(list_scores[row],list_scores[col])
-                    print(round(p, 3), end = "\t")
+                    print(round(p, 6), end = "\t")
         print ("\n")
 
 # Importando a base de dados Iris
@@ -78,34 +79,42 @@ table_result_measure = add_result_measure('NBG', table_result_measure, cross_val
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.cluster import KMeans
+from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_X_y
 
-class KMCClassifier():
-    def __init__(self, k_param=1):
-        self.k_param = k_param
+class KMCClassifier(BaseEstimator):
+    def __init__(self, k=1):
+        super().__init__()
+        self.k = k
         self.cent = []
 
     def fit(self, X_train, y_train):
         X_train, y_train = check_X_y(X_train, y_train)
-        for classes in range(np.unique(y_train)):
-            kmeans = KMeans(n_clusters=self.k_param)
-            #x y
-            #x [y == 0]
-            kmeans.fit(X_train, y_train)
-            self.cent.append({kmeans.cluster_centers_, y_train})
+        for classe in range(len(np.unique(y_train))):
+            kmeans = KMeans(n_clusters=self.k)
+            kmeans.fit(X_train [y_train == classe], classe)
+            self.cent.append((kmeans.cluster_centers_, classe))
 
-    def predict(self,x_test):
-        return
-        
+    def predict(self, X_test):
+        list_labels = []
+        for X_element in X_test:
+            min_dist = float('inf')
+            for list_cent in self.cent:
+                for cent in list_cent[0]:
+                    dist = np.linalg.norm(cent-X_element)
+                    if min_dist > dist:
+                        min_dist = dist
+                        list_labels.append(list_cent[1])
+        return list_labels
 
 # Definindo os hiperparametros
+parameters_KMC = {'estimator__k':[1,3,5,7]}
 parameters_KNN = {'estimator__n_neighbors':[1,3,5,7]}
 parameters_AD = {'estimator__max_depth':[None,3,5,10]}
-#parameters_KMC = {'estimator__k':[1,3,5,7]}
 
-#kMC = KMeansClassifier()
-#pipeline_kMC = Pipeline([('transformer', scalar), ('estimator', kMC)])
-#p_KMC = GridSearchCV(pipeline_kMC, parameters_KMC, scoring='accuracy', cv=4)
+kMC = KMCClassifier()
+pipeline_kMC = Pipeline([('transformer', scalar), ('estimator', kMC)])
+p_KMC = GridSearchCV(pipeline_kMC, parameters_KMC, scoring='accuracy', cv=4)
 
 kNN = KNeighborsClassifier()
 pipeline_kNN = Pipeline([('transformer', scalar), ('estimator', kNN)])
@@ -115,7 +124,8 @@ aD = DecisionTreeClassifier()
 pipeline_AD = Pipeline([('transformer', scalar), ('estimator', aD)])
 p_AD = GridSearchCV(pipeline_AD, parameters_AD, scoring='accuracy', cv=4)
 
-#table_result = add_result('KMC', table_result, cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
+kmc_scores = cross_val_score(p_KMC, data_X, data_y, scoring='accuracy', cv=rkf)
+table_result_measure = add_result_measure('KMC', table_result_measure, kmc_scores)
 #classification_report(cross_val_score(p_KMC, data_X, data_y, scoring='accuracy', cv = rkf))
 knn_scores = cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf)
 table_result_measure = add_result_measure('KNN', table_result_measure, knn_scores)
@@ -125,7 +135,7 @@ table_result_measure = add_result_measure('AD', table_result_measure, ad_scores)
 #classification_report(cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 
 table_result_measure.reset_index(drop=True, inplace=True)
-print(table_result_measure)
+# print(table_result_measure)
 
 list = [zr_scores, nbg_scores, knn_scores, ad_scores]
-table_htest(list)
+# table_htest(list)
