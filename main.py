@@ -28,11 +28,22 @@ def add_result_measure(met, df, scores):
     return df
 
 # Função para adicionar as medidas alvos na tabela de p-value
-def add_result_pvalue(met, df, scores):
-    new_row = pd.DataFrame([[met, round(scores.mean(), 2), round(scores.std(), 2), round(inf, 2), round(sup, 2)]],
-                            columns=['Método', 'Média', 'Desvio Padrão', 'Limite Inferior', 'Limite Superior'])
-    df = pd.concat([df, new_row])
-    return df
+def table_htest(list_scores):
+    from scipy.stats import ttest_rel, wilcoxon
+    list_estimators = ['ZR', 'NBG', 'KNN', 'AD'] #inluir kmc depois
+
+    for row in range(len(list_estimators)):
+        for col in range(len(list_estimators)):
+            if(row == col):
+                print(list_estimators[row], end = "\t")
+            else:
+                if(col > row):
+                    s,p = ttest_rel(list_scores[row],list_scores[col])
+                    print(round(p, 3), end = "\t")
+                else:
+                    s,p = wilcoxon(list_scores[row],list_scores[col])
+                    print(round(p, 3), end = "\t")
+        print ("\n")
 
 # Importando a base de dados Iris
 from sklearn import datasets
@@ -55,8 +66,10 @@ pipeline_zR = Pipeline([('transformer', scalar), ('estimator', zR)])
 gNB = GaussianNB()
 pipeline_gNB = Pipeline([('transformer', scalar), ('estimator', gNB)])
 
+zr_scores = cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf)
 table_result_measure = add_result_measure('ZR', table_result_measure, cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
+nbg_scores = cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf)
 table_result_measure = add_result_measure('NBG', table_result_measure, cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
 
@@ -76,10 +89,13 @@ class KMCClassifier():
         X_train, y_train = check_X_y(X_train, y_train)
         for classes in range(np.unique(y_train)):
             kmeans = KMeans(n_clusters=self.k_param)
+            #x y
+            #x [y == 0]
             kmeans.fit(X_train, y_train)
             self.cent.append({kmeans.cluster_centers_, y_train})
 
     def predict(self,x_test):
+        return
         
 
 # Definindo os hiperparametros
@@ -101,10 +117,15 @@ p_AD = GridSearchCV(pipeline_AD, parameters_AD, scoring='accuracy', cv=4)
 
 #table_result = add_result('KMC', table_result, cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 #classification_report(cross_val_score(p_KMC, data_X, data_y, scoring='accuracy', cv = rkf))
-table_result_measure = add_result_measure('KNN', table_result_measure, cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf))
+knn_scores = cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf)
+table_result_measure = add_result_measure('KNN', table_result_measure, knn_scores)
 #classification_report(cross_val_score(p_KNN, data_X, data_y, scoring='accuracy', cv=rkf))
-table_result_measure = add_result_measure('AD', table_result_measure, cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
+ad_scores = cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf)
+table_result_measure = add_result_measure('AD', table_result_measure, ad_scores)
 #classification_report(cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 
 table_result_measure.reset_index(drop=True, inplace=True)
 print(table_result_measure)
+
+list = [zr_scores, nbg_scores, knn_scores, ad_scores]
+table_htest(list)
