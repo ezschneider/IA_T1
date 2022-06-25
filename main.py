@@ -1,5 +1,3 @@
-from cmath import inf
-from random import random
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
@@ -10,7 +8,6 @@ import pandas as pd
 import numpy as np
 
 table_result_measure = pd.DataFrame(columns=['Método', 'Média', 'Desvio Padrão', 'Limite Inferior', 'Limite Superior'])
-table_result_pvalue = pd.DataFrame(columns=[''])
 
 # Função para mostrar as medidas alvos
 def classification_report(scores):
@@ -31,7 +28,7 @@ def add_result_measure(met, df, scores):
 # Função para adicionar as medidas alvos na tabela de p-value
 def table_htest(list_scores):
     from scipy.stats import ttest_rel, wilcoxon
-    list_estimators = ['ZR', 'NBG', 'KNN', 'AD'] #inluir kmc depois
+    list_estimators = ['ZR', 'NBG', 'KMC','KNN', 'AD'] #inluir kmc depois
 
     for row in range(len(list_estimators)):
         for col in range(len(list_estimators)):
@@ -46,7 +43,7 @@ def table_htest(list_scores):
                     print(round(p, 6), end = "\t")
         print ("\n")
 
-# Importando a base de dados Iris
+# Importando a base de dados
 from sklearn import datasets
 
 data = datasets.load_breast_cancer()
@@ -68,10 +65,10 @@ gNB = GaussianNB()
 pipeline_gNB = Pipeline([('transformer', scalar), ('estimator', gNB)])
 
 zr_scores = cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf)
-table_result_measure = add_result_measure('ZR', table_result_measure, cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
+table_result_measure = add_result_measure('ZR', table_result_measure, zr_scores)
 #classification_report(cross_val_score(pipeline_zR, data_X, data_y, scoring='accuracy', cv=rkf))
 nbg_scores = cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf)
-table_result_measure = add_result_measure('NBG', table_result_measure, cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
+table_result_measure = add_result_measure('NBG', table_result_measure, nbg_scores)
 #classification_report(cross_val_score(pipeline_gNB, data_X, data_y, scoring='accuracy', cv=rkf))
 
 # Parte II
@@ -87,25 +84,21 @@ class KMCClassifier(BaseEstimator):
         super().__init__()
         self.k = k
         self.cent = []
+        self.label = []
 
     def fit(self, X_train, y_train):
         X_train, y_train = check_X_y(X_train, y_train)
         for classe in range(len(np.unique(y_train))):
             kmeans = KMeans(n_clusters=self.k)
-            kmeans.fit(X_train [y_train == classe], classe)
-            self.cent.append((kmeans.cluster_centers_, classe))
+            kmeans.fit(X_train [y_train == classe])
+            for clust in kmeans.cluster_centers_:
+                self.cent.append(clust)
+                self.label.append(classe)
 
     def predict(self, X_test):
-        list_labels = []
-        for X_element in X_test:
-            min_dist = float('inf')
-            for list_cent in self.cent:
-                for cent in list_cent[0]:
-                    dist = np.linalg.norm(cent-X_element)
-                    if min_dist > dist:
-                        min_dist = dist
-                        list_labels.append(list_cent[1])
-        return list_labels
+        knn = KNeighborsClassifier(n_neighbors=1)
+        knn.fit(self.cent, self.label)
+        return knn.predict(X_test)
 
 # Definindo os hiperparametros
 parameters_KMC = {'estimator__k':[1,3,5,7]}
@@ -135,7 +128,7 @@ table_result_measure = add_result_measure('AD', table_result_measure, ad_scores)
 #classification_report(cross_val_score(p_AD, data_X, data_y, scoring='accuracy', cv=rkf))
 
 table_result_measure.reset_index(drop=True, inplace=True)
-# print(table_result_measure)
+print(table_result_measure)
 
-list = [zr_scores, nbg_scores, knn_scores, ad_scores]
-# table_htest(list)
+list = [zr_scores, nbg_scores, kmc_scores, knn_scores, ad_scores]
+table_htest(list)
