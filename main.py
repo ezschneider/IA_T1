@@ -4,6 +4,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from scipy import stats
+import matplotlib.pyplot as plot
+import seaborn as sns
 import pandas as pd
 import numpy as np
 
@@ -26,29 +28,46 @@ def add_result_measure(met, df, scores):
     return df
 
 # Função para adicionar as medidas alvos na tabela de p-value
+# def table_htest(list_scores):
+#     from scipy.stats import ttest_rel, wilcoxon
+#     list_estimators = ['ZR', 'NBG', 'KMC','KNN', 'AD'] #inluir kmc depois
+
+#     for row in range(len(list_estimators)):
+#         for col in range(len(list_estimators)):
+#             if(row == col):
+#                 print(list_estimators[row], end = "\t")
+#             else:
+#                 if(col > row):
+#                     s,p = ttest_rel(list_scores[row],list_scores[col])
+#                     print(round(p, 6), end = "\t")
+#                 else:
+#                     s,p = wilcoxon(list_scores[row],list_scores[col])
+#                     print(round(p, 6), end = "\t")
+#         print ("\n")
 def table_htest(list_scores):
     from scipy.stats import ttest_rel, wilcoxon
-    list_estimators = ['ZR', 'NBG', 'KMC','KNN', 'AD'] #inluir kmc depois
+    list_estimators = ['ZR', 'NBG', 'KMC','KNN', 'AD']
+    table_htest = [[0 for _ in range(len(list_estimators))] for _ in range(len(list_estimators))]
 
     for row in range(len(list_estimators)):
         for col in range(len(list_estimators)):
             if(row == col):
-                print(list_estimators[row], end = "\t")
+                table_htest[row][col] = list_estimators[row]
             else:
                 if(col > row):
                     s,p = ttest_rel(list_scores[row],list_scores[col])
-                    print(round(p, 6), end = "\t")
+                    table_htest[row][col] = round(p, 3)
                 else:
                     s,p = wilcoxon(list_scores[row],list_scores[col])
-                    print(round(p, 6), end = "\t")
-        print ("\n")
+                    table_htest[row][col] = round(p, 3)
+    return table_htest
 
 # Importando a base de dados
 from sklearn import datasets
 
 data = datasets.load_breast_cancer()
 data_X = data.data
-data_y = data.target   
+data_y = data.target
 
 # Parte I
 # Importando os Classificadores ZeroR e Naive Bayes Gaussiano
@@ -130,5 +149,12 @@ table_result_measure = add_result_measure('AD', table_result_measure, ad_scores)
 table_result_measure.reset_index(drop=True, inplace=True)
 print(table_result_measure)
 
-list = [zr_scores, nbg_scores, kmc_scores, knn_scores, ad_scores]
-table_htest(list)
+list_scores = [zr_scores, nbg_scores, kmc_scores, knn_scores, ad_scores]
+print(table_htest(list_scores))
+
+# BOXPLOT
+# list_estimators = ['ZR', 'NBG', 'KMC','KNN', 'AD']
+# table_scores = pd.DataFrame(columns=list_estimators)
+# for i in range(len(list_estimators)):
+#     table_scores[list_estimators[i]] = list_scores[i]
+# sns.boxplot(data=table_scores)
